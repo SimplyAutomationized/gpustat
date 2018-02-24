@@ -83,7 +83,15 @@ class GPUStat(object):
         :return:
         """
         return int(self.entry['gpuclock'])
-    
+
+    @property
+    def fan_speed(self):
+        """
+        Return current fan speed %
+        :return:
+        """
+        return int(self.entry['fan.speed'])
+
     @property
     def memory_used(self):
         """
@@ -292,6 +300,10 @@ class GPUStatCollection(object):
             except N.NVMLError:
                 gpuclock = None
             try:
+                fanspeed = _decode(N.nvmlDeviceGetFanSpeed(handle))
+            except N.NVMLError:
+                fanspeed = None
+            try:
                 temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
             except N.NVMLError:
                 temperature = None  # Not supported
@@ -345,6 +357,7 @@ class GPUStatCollection(object):
             index = N.nvmlDeviceGetIndex(handle)
             gpu_info = {
                 'clock': gpuclock,
+                'fan.speed': fanspeed,
                 'index': index,
                 'uuid': uuid,
                 'name': name,

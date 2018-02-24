@@ -77,12 +77,12 @@ class GPUStat(object):
         return int(self.entry['memory.total'])
 
     @property
-    def cpu_clock(self):
+    def gpu_clock(self):
         """
-        Return current cpu clock speed
+        Return current gpu clock speed
         :return:
         """
-        return int(self.entry['cpuclock'])
+        return int(self.entry['gpuclock'])
     
     @property
     def memory_used(self):
@@ -288,9 +288,9 @@ class GPUStatCollection(object):
             uuid = _decode(N.nvmlDeviceGetUUID(handle))
 
             try:
-                cpuclock = _decode(N.nvmlDeviceGetClock(handle, 3, 0))
+                gpuclock = _decode(N.nvmlDeviceGetClock(handle, 3, 0))
             except N.NVMLError:
-                cpuclock = None
+                gpuclock = None
             try:
                 temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
             except N.NVMLError:
@@ -344,7 +344,7 @@ class GPUStatCollection(object):
 
             index = N.nvmlDeviceGetIndex(handle)
             gpu_info = {
-                'clock': cpuclock,
+                'clock': gpuclock,
                 'index': index,
                 'uuid': uuid,
                 'name': name,

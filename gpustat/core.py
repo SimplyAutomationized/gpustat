@@ -18,18 +18,16 @@ import platform
 import sys
 from datetime import datetime
 
-import six
-from six.moves import cStringIO as StringIO
-
 import psutil
 import pynvml as N
+import six
 from blessings import Terminal
+from six.moves import cStringIO as StringIO
 
 NOT_SUPPORTED = 'Not Supported'
 
 
 class GPUStat(object):
-
     def __init__(self, entry):
         if not isinstance(entry, dict):
             raise TypeError('entry should be a dict, {} given'.format(type(entry)))
@@ -78,6 +76,14 @@ class GPUStat(object):
         """
         return int(self.entry['memory.total'])
 
+    @property
+    def cpu_clock(self):
+        """
+        Return current cpu clock speed
+        :return:
+        """
+        return int(self.entry['cpuclock'])
+    
     @property
     def memory_used(self):
         """
@@ -143,9 +149,8 @@ class GPUStat(object):
         """
         return list(self.entry['processes'])
 
-
     def print_to(self, fp,
-                 with_colors=True,    # deprecated arg
+                 with_colors=True,  # deprecated arg
                  show_cmd=False,
                  show_user=False,
                  show_pid=False,
@@ -159,8 +164,10 @@ class GPUStat(object):
         def _conditional(cond_fn, true_value, false_value,
                          error_value=term.bold_black):
             try:
-                if cond_fn(): return true_value
-                else: return false_value
+                if cond_fn():
+                    return true_value
+                else:
+                    return false_value
             except:
                 return error_value
 
@@ -172,11 +179,12 @@ class GPUStat(object):
         colors['CMemU'] = term.bold_yellow
         colors['CMemT'] = term.yellow
         colors['CMemP'] = term.yellow
-        colors['CUser'] = term.bold_black   # gray
+        colors['CUser'] = term.bold_black  # gray
         colors['CUtil'] = _conditional(lambda: int(self.entry['utilization.gpu']) < 30,
                                        term.green, term.bold_green)
-        colors['CPowU'] = _conditional(lambda: float(self.entry['power.draw']) / self.entry['enforced.power.limit'] < 0.4,
-                                       term.magenta, term.bold_magenta)
+        colors['CPowU'] = _conditional(
+            lambda: float(self.entry['power.draw']) / self.entry['enforced.power.limit'] < 0.4,
+            term.magenta, term.bold_magenta)
         colors['CPowL'] = term.magenta
 
         if not with_colors:
@@ -184,8 +192,10 @@ class GPUStat(object):
                 colors[k] = ''
 
         def _repr(v, none_value='??'):
-            if v is None: return none_value
-            else: return str(v)
+            if v is None:
+                return none_value
+            else:
+                return str(v)
 
         # build one-line display information
         # we want power use optional, but if deserves being grouped with temperature and utilization
@@ -237,7 +247,6 @@ class GPUStat(object):
 
 
 class GPUStatCollection(object):
-
     def __init__(self, gpu_list):
         self.gpus = gpu_list
 
@@ -261,7 +270,7 @@ class GPUStatCollection(object):
                 process['username'] = ps_process.username()
                 # cmdline returns full path; as in `ps -o comm`, get short cmdnames.
                 _cmdline = ps_process.cmdline()
-                if not _cmdline:   # sometimes, zombie or unknown (e.g. [kworker/8:2H])
+                if not _cmdline:  # sometimes, zombie or unknown (e.g. [kworker/8:2H])
                     process['command'] = '?'
                 else:
                     process['command'] = os.path.basename(_cmdline[0])
@@ -272,19 +281,23 @@ class GPUStatCollection(object):
 
             def _decode(b):
                 if isinstance(b, bytes):
-                    return b.decode()    # for python3, to unicode
+                    return b.decode()  # for python3, to unicode
                 return b
 
             name = _decode(N.nvmlDeviceGetName(handle))
             uuid = _decode(N.nvmlDeviceGetUUID(handle))
 
             try:
+                cpuclock = _decode(N.nvmlDeviceGetClock(handle, 3, 0))
+            except N.NVMLError:
+                cpuclock = None
+            try:
                 temperature = N.nvmlDeviceGetTemperature(handle, N.NVML_TEMPERATURE_GPU)
             except N.NVMLError:
                 temperature = None  # Not supported
 
             try:
-                memory = N.nvmlDeviceGetMemoryInfo(handle) # in Bytes
+                memory = N.nvmlDeviceGetMemoryInfo(handle)  # in Bytes
             except N.NVMLError:
                 memory = None  # Not supported
 
@@ -314,7 +327,7 @@ class GPUStatCollection(object):
                 nv_graphics_processes = None  # Not supported
 
             if nv_comp_processes is None and nv_graphics_processes is None:
-                processes = None   # Not supported (in both cases)
+                processes = None  # Not supported (in both cases)
             else:
                 nv_comp_processes = nv_comp_processes or []
                 nv_graphics_processes = nv_graphics_processes or []
@@ -331,6 +344,7 @@ class GPUStatCollection(object):
 
             index = N.nvmlDeviceGetIndex(handle)
             gpu_info = {
+                'clock': cpuclock,
                 'index': index,
                 'uuid': uuid,
                 'name': name,
@@ -389,7 +403,7 @@ class GPUStatCollection(object):
         elif no_color:
             t_color = Terminal(force_styling=None)
         else:
-            t_color = Terminal()   # auto, depending on isatty
+            t_color = Terminal()  # auto, depending on isatty
 
         # header
         if show_header:
